@@ -20,8 +20,11 @@ public partial class USUWrapper : BaseWrapper
 	private static readonly BlockingCollection<string> _logQueue = new(new ConcurrentQueue<string>());
 	private static readonly string LOG_DIRECTORY;
 	private static Thread _logThread;
+	private static Thread _logTimerThread;
 	private static string _currentLogPath;
 	private static bool _isRunning = true;
+	private static bool _receiveLog = true;
+	
 	private static event Action FlushCalled;
 	private static DateTime _lastFlushTime;
 
@@ -44,6 +47,8 @@ public partial class USUWrapper : BaseWrapper
 
 	public override void SendStatistics(Dictionary<string, object> properties)
     {
+	    if(!_receiveLog) return;
+	    
         string logStr = GetLogStringFromDictionary(properties);
         _logQueue.Add(logStr.TrimEnd(',', ' '));
     }
@@ -55,6 +60,12 @@ public partial class USUWrapper : BaseWrapper
 
 	public override void Flush()
 	{
+		Flush(true);
+	}
+	
+	private void Flush(bool loop = false)
+	{
+		_receiveLog = loop;
 		_isRunning = false; // Stop the log thread
 		_logThread?.Join(); // Wait for the log thread to finish
 
@@ -78,6 +89,9 @@ public partial class USUWrapper : BaseWrapper
 		}
 		FlushAsync().Wait(); // 等待异步操作完成
 		FlushCalled?.Invoke(); // 触发事件
+		
+		if(!loop) return;
+
 		_isRunning = true;
 		_logThread = new Thread(WriteLogToFile) { IsBackground = true };
 		_logThread.Start();
@@ -147,7 +161,8 @@ public partial class USUWrapper : BaseWrapper
 	// 自动刷新的辅助方法
 	private void StartAutoFlush()
 	{
-		Thread autoFlushThread = new Thread(async () =>
+		if(_logTimerThread != null) return;
+		_logTimerThread = new Thread(async () =>
 		{
 			_lastFlushTime = DateTime.Now;
 
@@ -157,7 +172,7 @@ public partial class USUWrapper : BaseWrapper
 				{
 					try
 					{
-						Flush();
+						Flush(true);
 					}
 					catch (Exception ex)
 					{
@@ -171,7 +186,7 @@ public partial class USUWrapper : BaseWrapper
 			IsBackground = true,
 			Name = "AutoFlushThread" // 添加线程名称便于调试
 		};
-		autoFlushThread.Start();
+		_logTimerThread.Start();
 
 		FlushCalled += () => _lastFlushTime = DateTime.Now;
 	}
@@ -181,26 +196,25 @@ public partial class USUWrapper : BaseWrapper
 	    try
 	    {
 		    _isRunning = false;
-		    FlushCalled = null;
-		    
-		    // 最后一次尝试刷新
-		    try
-		    {
-			    Flush();
-		    }
-		    catch (Exception ex)
-		    {
-			    Debug.LogError($"Final flush failed: {ex.Message}");
-		    }
-
-		    // 等待日志线程完成
-		    if (_logThread?.IsAlive == true)
-		    {
-			    if (!_logThread.Join(TimeSpan.FromSeconds(5)))
-			    {
-				    Debug.LogWarning("Log thread did not terminate gracefully");
-			    }
-		    }
+		    _logTimerThread?.Join(1000);
+		    _logThread?.Join(1000);
+		    // var timeout = Task.WhenAny(Task.Delay(3000), Task.Run(() =>
+		    // {
+			//     try
+			//     {
+			// 	    // 异步刷新
+			// 	    var flushTask = Task.Run(() => Flush());
+			// 	    if (!flushTask.Wait(2000)) // 给flush操作2秒超时
+			// 	    {
+			// 		    Debug.LogWarning("Final flush timed out");
+			// 	    }
+			//     }
+			//     catch (Exception ex)
+			//     {
+			// 	    Debug.LogError($"Final flush failed: {ex.Message}");
+			//     }
+		    // }));
+		    // timeout.Wait(); 
 	    }
 	    catch (Exception ex)
 	    {
