@@ -12,6 +12,8 @@ public class StatisticsUploader : MonoBehaviour
     private void Awake()
     {
         UsuConnector = GetComponent<USUConnector>();
+        UsuConnector.RequestToken();
+        
         _usuWrapper = new USUWrapper();
         _usuWrapper.Initialize();
         DontDestroyOnLoad(gameObject);

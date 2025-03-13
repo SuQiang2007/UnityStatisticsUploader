@@ -13,25 +13,33 @@ using UnityEngine;
 /// </summary>
 public class USUConnector : MonoBehaviour
 {
+    private string _token;
+    private bool _isLoggedIn;
+    
     private static readonly HttpClient _httpClient = new()
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
-    // Start is called before the first frame update
-    void Start()
+
+    public void RequestToken()
     {
         
     }
 
-    // Update is called once per frame
-    void Update()
+    public bool IsConnectorAvailable()
     {
-        
+        return false;
     }
     
     
     public async Task<bool> SendLogsToServerAsync(string logs)
     {
+        if (!IsConnectorAvailable())
+        {
+            Debug.LogWarning("No USU connector available.");
+            return false;
+        }
+        
         Debug.LogError($"上传到服务端一条日志：{logs}");
         return true;
         // try
