@@ -11,7 +11,7 @@ using UnityEngine;
 /// Its role is solely to handle the interaction with your event tracking server.
 /// In this example, I use Alibaba Cloud's event tracking server.
 /// </summary>
-public class USUConnector : MonoBehaviour
+public class USUConnector : BaseConnector
 {
     private string _token;
     private bool _isLoggedIn;
@@ -21,18 +21,18 @@ public class USUConnector : MonoBehaviour
         Timeout = TimeSpan.FromSeconds(30)
     };
 
-    public void RequestToken()
+    internal override void Initialize()
     {
         
     }
 
-    public bool IsConnectorAvailable()
+    internal override bool IsConnectorAvailable()
     {
         return false;
     }
     
     
-    public async Task<bool> SendLogsToServerAsync(string logs)
+    internal override async Task<bool> SendLogsToServerAsync(string logs)
     {
         if (!IsConnectorAvailable())
         {

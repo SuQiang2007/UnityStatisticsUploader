@@ -15,7 +15,7 @@ using Newtonsoft.Json;
 /// This should be used on only Editor and PC platform
 /// But we use it on all platforms for now because we don't have enough time to do that.
 /// </summary>
-public partial class USUWrapper : BaseWrapper
+internal partial class USUWrapper : BaseWrapper
 {
 	private static readonly BlockingCollection<string> _logQueue = new(new ConcurrentQueue<string>());
 	private static readonly string LOG_DIRECTORY;
@@ -39,13 +39,13 @@ public partial class USUWrapper : BaseWrapper
 		Directory.CreateDirectory(LOG_DIRECTORY);
 	}
 
-	public override void Initialize()
+	internal override void Initialize()
 	{
 		StartThread();
 		StartAutoFlush();
 	}
 
-	public override void SendStatistics(Dictionary<string, object> properties)
+	internal override void SendStatistics(Dictionary<string, object> properties)
     {
 	    if(!_receiveLog) return;
 	    
@@ -58,7 +58,7 @@ public partial class USUWrapper : BaseWrapper
 		return JsonConvert.SerializeObject(properties);
 	}
 
-	public override void Flush()
+	internal override void Flush()
 	{
 		Flush(true);
 	}
@@ -191,7 +191,7 @@ public partial class USUWrapper : BaseWrapper
 		FlushCalled += () => _lastFlushTime = DateTime.Now;
 	}
 
-	public override void OnDestroy()
+	internal override void OnDestroy()
     {
 	    try
 	    {
@@ -224,7 +224,7 @@ public partial class USUWrapper : BaseWrapper
     
 	void StartThread()
 	{
-		string directory = Path.Combine(Application.persistentDataPath, "td_data");
+		string directory = Path.Combine(Application.persistentDataPath, LOG_FOLDER);
 		Directory.CreateDirectory(directory); // 确保目录存在
 		_logThread = new Thread(WriteLogToFile) { IsBackground = true };
 		_logThread.Start();

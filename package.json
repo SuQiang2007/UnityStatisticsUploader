@@ -1,0 +1,19 @@
+{
+  "name": "com.sky-lancer.unity-statistics-uploader",
+  "version": "0.0.1",
+  "displayName": "UnityStatisticsUploader",
+  "description": "A Unity client-side logging framework that supports automatic table reading, retains logs even after crashes or errors, and sends the logs to the server at an appropriate time.",
+  "category": "Runtime",
+  "documentationUrl": "https://github.com/SuQiang2007/UnityStatisticsUploader",
+  "changelogUrl": "https://github.com/SuQiang2007/UnityStatisticsUploader",
+  "licensesUrl": "https://github.com/SuQiang2007/UnityStatisticsUploader?tab=MIT-1-ov-file",
+  "keywords": [
+    "Unity",
+    "statistics",
+    "usu"],
+  "author": {
+    "name": "Squall",
+    "email": "squall19871@gmail.com",
+    "url": "https://github.com/SuQiang2007/UnityStatisticsUploader"
+  }
+}

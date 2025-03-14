@@ -2,11 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class BaseWrapper
+internal abstract class BaseWrapper
 {
-    public abstract void Initialize();
-    public abstract void SendStatistics(Dictionary<string, object> properties);
+    internal abstract void Initialize();
+    internal abstract void SendStatistics(Dictionary<string, object> properties);
 
-    public abstract void Flush();
-    public abstract void OnDestroy();
+    internal abstract void Flush();
+    internal abstract void OnDestroy();
 }
