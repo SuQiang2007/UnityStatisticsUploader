@@ -126,14 +126,20 @@ internal partial class USUWrapper : BaseWrapper
 			{
 				try
 				{
-					string logEntries = await File.ReadAllTextAsync(filePath);
-					if (logEntries.Length == 0) 
+					// string logEntries = await File.ReadAllTextAsync(filePath);
+					// if (logEntries.Length == 0) 
+					// {
+					// 	File.Delete(filePath);
+					// 	continue;
+					// }
+					Debug.Log($"Start upload file:{filePath}");
+					string[] lines = await File.ReadAllLinesAsync(filePath);
+					List<Dictionary<string, object>> data = new List<Dictionary<string, object>>();
+					foreach (var line in lines)
 					{
-						File.Delete(filePath);
-						continue;
+						data.Add(JsonConvert.DeserializeObject<Dictionary<string, object>>(line));
 					}
-
-					bool success = await StatisticsUploader.UsuConnector.SendLogsToServerAsync(logEntries);
+					bool success = await StatisticsUploader.UsuConnector.SendLogsToServerAsync(data);
 					
 					if (success)
 					{

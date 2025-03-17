@@ -9,5 +9,5 @@ public abstract class BaseConnector : MonoBehaviour
 
     internal abstract bool IsConnectorAvailable();
 
-    internal abstract Task<bool> SendLogsToServerAsync(string logs);
+    internal abstract Task<bool> SendLogsToServerAsync(List<Dictionary<string, object>> list);
 }
