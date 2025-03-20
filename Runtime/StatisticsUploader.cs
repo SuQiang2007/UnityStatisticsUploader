@@ -1,25 +1,40 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class StatisticsUploader : MonoBehaviour
 {
-    public static UsuConfigScriptable UsuConfig;
-    public static USUConnector UsuConnector;
+    public static BaseConnector UsuConnector;
     private static USUWrapper _usuWrapper;
+    
+    //You can set these parameters anywhere
+    public static bool ReceiveErrorLog = true;
+    public static bool ReceiveExceptionLog = true;
+    
+    [HideInInspector]
+    public static MonoBehaviour MonoBehaviour;
+
+    public static void DynamicInitUsu<T>(Transform parent = null) where T : Component
+    {
+        GameObject usuGo = new GameObject("USUGameObject");
+        if(parent != null) usuGo.transform.parent = parent;
+        DontDestroyOnLoad(usuGo);
+        usuGo.AddComponent<T>();
+        usuGo.AddComponent<StatisticsUploader>();
+        usuGo.AddComponent<USUSensorUnity>();
+    }
+    
     //Init logic is here
     private void Awake()
     {
-        UsuConnector = GetComponent<USUConnector>();
+        MonoBehaviour = this;
+        
+        UsuConnector = GetComponent<BaseConnector>();
         UsuConnector.Initialize();
         
         _usuWrapper = new USUWrapper();
         _usuWrapper.Initialize();
         DontDestroyOnLoad(gameObject);
-        
-        Application.logMessageReceived += HandleLog;
-        AppDomain.CurrentDomain.UnhandledException += HandleUnhandledException;
     }
 
     private void OnDestroy()
@@ -29,6 +44,7 @@ public class StatisticsUploader : MonoBehaviour
 
     public static void SendStatistics(Dictionary<string, object> properties)
     {
+        UsuConnector.DecorateData(properties);
         _usuWrapper.SendStatistics(properties);
     }
 
@@ -49,6 +65,7 @@ public class StatisticsUploader : MonoBehaviour
                 { "ErrorMessage", condition },
                 { "StackTrace", stackTrace }
             };
+            UsuConnector.DecorateData(errorData);
             _usuWrapper.SendStatistics(errorData);
         }
     }
@@ -60,6 +77,7 @@ public class StatisticsUploader : MonoBehaviour
             { "ErrorMessage", e.ToString() },
             { "StackTrace", "" }
         };
+        UsuConnector.DecorateData(errorData);
         _usuWrapper.SendStatistics(errorData);
     }
 }

@@ -1,14 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using UnityEngine;
-using System.Threading.Tasks;
-using System.Net.Http;
 using Newtonsoft.Json;
+using System.Collections;
 
 // #if UNITY_EDITOR
 /// <summary>
@@ -17,10 +13,8 @@ using Newtonsoft.Json;
 /// </summary>
 internal partial class USUWrapper : BaseWrapper
 {
-	private static readonly BlockingCollection<string> _logQueue = new(new ConcurrentQueue<string>());
+	private static readonly List<string> _logQueue = new List<string>();
 	private static readonly string LOG_DIRECTORY;
-	private static Thread _logThread;
-	private static Thread _logTimerThread;
 	private static string _currentLogPath;
 	private static bool _isRunning = true;
 	private static bool _receiveLog = true;
@@ -28,10 +22,13 @@ internal partial class USUWrapper : BaseWrapper
 	private static event Action FlushCalled;
 	private static DateTime _lastFlushTime;
 
+	private Coroutine _timerCoroutine;
+	private Coroutine _writeCoroutine;
 
 	private const string LOG_FOLDER = "usu_data";
 	private const int AUTO_FLUSH_INTERVAL_SECONDS = 30;
-	private const int CHECK_INTERVAL_MS = 1000;
+	private const int MAX_COUNT_PER_FILE = 60;
+	private const int CHECK_INTERVAL_S = 1;
 
 	static USUWrapper()
 	{
@@ -66,10 +63,8 @@ internal partial class USUWrapper : BaseWrapper
 	private void Flush(bool loop = false)
 	{
 		_receiveLog = loop;
-		_isRunning = false; // Stop the log thread
-		_logThread?.Join(); // Wait for the log thread to finish
+		_isRunning = false;
 
-		// Save the log file if necessary
 		if (_currentLogPath != null)
 		{
 			if (!File.Exists(_currentLogPath))
@@ -80,147 +75,119 @@ internal partial class USUWrapper : BaseWrapper
 			else
 			{
 				using var writer = new StreamWriter(_currentLogPath, true);
-				while (_logQueue.TryTake(out var logEntry))
+				foreach (var logEntry in _logQueue)
 				{
 					writer.WriteLine(logEntry);
 				}
 				writer.Flush();
 			}
 		}
-		FlushAsync().Wait(); // 等待异步操作完成
-		FlushCalled?.Invoke(); // 触发事件
+		
+		// 启动协程
+		MonoBehaviour monoBehaviour = GetMonoBehaviourInstance();
+		if (monoBehaviour != null)
+		{
+			monoBehaviour.StartCoroutine(FlushCoroutine());
+		}
+		
+		FlushCalled?.Invoke();
 		
 		if(!loop) return;
 
 		_isRunning = true;
-		_logThread = new Thread(WriteLogToFile) { IsBackground = true };
-		_logThread.Start();
 	}
 
-	private async Task FlushAsync()
+	private IEnumerator FlushCoroutine()
 	{
-		try
-		{
-			string directory = Path.GetDirectoryName(_currentLogPath);
-			if (directory == null) return;
+		string directory = Path.GetDirectoryName(_currentLogPath);
+		if (directory == null) yield break;
 
-			// 获取所有日志文件
-			var logFiles = Directory.GetFiles(directory, "*.txt")
-				.Where(f => Path.GetFileName(f).Length > 15)
-				.Where(f => 
-				{
-					var fileName = Path.GetFileName(f);
-					return fileName.Contains("_") && 
-						   DateTime.TryParseExact(
-							   fileName.Split('_')[0], 
-							   "yyyyMMddHHmmss", 
-							   null, 
-							   System.Globalization.DateTimeStyles.None, 
-							   out _
-						   );
-				})
-				.OrderBy(f => Path.GetFileName(f).Split('_')[0])
-				.ToList();
-
-			foreach (var filePath in logFiles)
+		// 获取所有日志文件
+		var logFiles = Directory.GetFiles(directory, "*.txt")
+			.Where(f => Path.GetFileName(f).Length > 15)
+			.Where(f => 
 			{
+				var fileName = Path.GetFileName(f);
+				return fileName.Contains("_") && 
+					   DateTime.TryParseExact(
+						   fileName.Split('_')[0], 
+						   "yyyyMMddHHmmss", 
+						   null, 
+						   System.Globalization.DateTimeStyles.None, 
+						   out _
+					   );
+			})
+			.OrderBy(f => Path.GetFileName(f).Split('_')[0])
+			.ToList();
+
+		foreach (var filePath in logFiles)
+		{
+			string[] lines = File.ReadAllLines(filePath);
+			List<Dictionary<string, object>> data = new List<Dictionary<string, object>>();
+			foreach (var line in lines)
+			{
+				data.Add(JsonConvert.DeserializeObject<Dictionary<string, object>>(line));
+			}
+
+			yield return GetMonoBehaviourInstance().StartCoroutine(StatisticsUploader.UsuConnector.SendLogsToServer(data, filePath, success =>
+			{
+				if (success)
+				{
+					File.Delete(filePath);
+					Debug.Log($"Successfully processed and deleted log file: {filePath}");
+				}
+				else
+				{
+					Debug.LogWarning($"Failed to send logs from file: {filePath}");
+				}
+			}));
+			
+			// 每处理完一个文件暂停一帧，避免卡顿
+			yield return null;
+		}
+	}
+
+	private IEnumerator StartAutoFlushCoroutine()
+	{
+		_lastFlushTime = DateTime.Now;
+
+		while (_isRunning)
+		{
+			var aaa  = (DateTime.Now - _lastFlushTime).TotalSeconds;
+			if (aaa >= AUTO_FLUSH_INTERVAL_SECONDS)
+			{
+				_lastFlushTime = DateTime.Now;
 				try
 				{
-					// string logEntries = await File.ReadAllTextAsync(filePath);
-					// if (logEntries.Length == 0) 
-					// {
-					// 	File.Delete(filePath);
-					// 	continue;
-					// }
-					Debug.Log($"Start upload file:{filePath}");
-					string[] lines = await File.ReadAllLinesAsync(filePath);
-					List<Dictionary<string, object>> data = new List<Dictionary<string, object>>();
-					foreach (var line in lines)
-					{
-						data.Add(JsonConvert.DeserializeObject<Dictionary<string, object>>(line));
-					}
-					bool success = await StatisticsUploader.UsuConnector.SendLogsToServerAsync(data);
-					
-					if (success)
-					{
-						File.Delete(filePath);
-						Debug.Log($"Successfully processed and deleted log file: {Path.GetFileName(filePath)}");
-					}
-					else
-					{
-						Debug.LogWarning($"Failed to send logs from file: {Path.GetFileName(filePath)}");
-					}
+					Flush(true);
 				}
 				catch (Exception ex)
 				{
-					Debug.LogError($"Error processing file {Path.GetFileName(filePath)}: {ex.Message}");
+					Debug.LogError($"Auto flush failed: {ex.Message}");
 				}
 			}
-		}
-		catch (Exception ex)
-		{
-			Debug.LogError($"Error in Flush: {ex.Message}");
+			yield return new WaitForSeconds(CHECK_INTERVAL_S); // 转换为秒
 		}
 	}
 
-
-	// 自动刷新的辅助方法
+	// 修改 StartAutoFlush 方法
 	private void StartAutoFlush()
 	{
-		if(_logTimerThread != null) return;
-		_logTimerThread = new Thread(async () =>
+		// 启动协程
+		MonoBehaviour monoBehaviour = GetMonoBehaviourInstance();
+		if (monoBehaviour != null && _timerCoroutine == null)
 		{
-			_lastFlushTime = DateTime.Now;
-
-			while (_isRunning)
-			{
-				if ((DateTime.Now - _lastFlushTime).TotalSeconds >= AUTO_FLUSH_INTERVAL_SECONDS)
-				{
-					try
-					{
-						Flush(true);
-					}
-					catch (Exception ex)
-					{
-						Debug.LogError($"Auto flush failed: {ex.Message}");
-					}
-				}
-				await Task.Delay(CHECK_INTERVAL_MS);
-			}
-		})
-		{
-			IsBackground = true,
-			Name = "AutoFlushThread" // 添加线程名称便于调试
-		};
-		_logTimerThread.Start();
-
-		FlushCalled += () => _lastFlushTime = DateTime.Now;
+			 _timerCoroutine = monoBehaviour.StartCoroutine(StartAutoFlushCoroutine());
+		}
 	}
 
 	internal override void OnDestroy()
     {
 	    try
 	    {
+		    GetMonoBehaviourInstance().StopCoroutine(_writeCoroutine);
+		    GetMonoBehaviourInstance().StopCoroutine(_timerCoroutine);
 		    _isRunning = false;
-		    _logTimerThread?.Join(1000);
-		    _logThread?.Join(1000);
-		    // var timeout = Task.WhenAny(Task.Delay(3000), Task.Run(() =>
-		    // {
-			//     try
-			//     {
-			// 	    // 异步刷新
-			// 	    var flushTask = Task.Run(() => Flush());
-			// 	    if (!flushTask.Wait(2000)) // 给flush操作2秒超时
-			// 	    {
-			// 		    Debug.LogWarning("Final flush timed out");
-			// 	    }
-			//     }
-			//     catch (Exception ex)
-			//     {
-			// 	    Debug.LogError($"Final flush failed: {ex.Message}");
-			//     }
-		    // }));
-		    // timeout.Wait(); 
 	    }
 	    catch (Exception ex)
 	    {
@@ -228,33 +195,24 @@ internal partial class USUWrapper : BaseWrapper
 	    }
     }
     
-	void StartThread()
+	private IEnumerator WriteLogToFileCoroutine()
 	{
-		string directory = Path.Combine(Application.persistentDataPath, LOG_FOLDER);
-		Directory.CreateDirectory(directory); // 确保目录存在
-		_logThread = new Thread(WriteLogToFile) { IsBackground = true };
-		_logThread.Start();
-	}
-
-	private static void WriteLogToFile()
-	{
-		const int maxEntriesPerFile = 50;
 		int currentEntryCount = 0;
 		string currentFilePath = null;
-		
+
 		while (_isRunning || _logQueue.Count > 0)
 		{
 			try
 			{
-				// 当达到50条记录或者是第一次运行时，创建新文件
-				if (currentEntryCount >= maxEntriesPerFile || currentFilePath == null)
+				// 当达到MAX_COUNT_PER_FILE条记录或者是第一次运行时，创建新文件
+				if (currentEntryCount >= MAX_COUNT_PER_FILE || currentFilePath == null)
 				{
 					currentEntryCount = 0;
 					// 生成时间戳_GUID格式的文件名
 					string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 					string guid = Guid.NewGuid().ToString("N"); // N格式移除了破折号
 					string fileName = $"{timestamp}_{guid}.txt";
-					
+
 					currentFilePath = Path.Combine(
 						LOG_DIRECTORY,
 						fileName
@@ -262,15 +220,15 @@ internal partial class USUWrapper : BaseWrapper
 
 					_currentLogPath = currentFilePath;
 					// 确保目录存在
-					Directory.CreateDirectory(Path.GetDirectoryName(currentFilePath));
+					Directory.CreateDirectory(Path.GetDirectoryName(currentFilePath) ?? string.Empty);
 				}
 
 				using (StreamWriter writer = new StreamWriter(currentFilePath, true))
 				{
-					if (_logQueue.TryTake(out string log, 500)) // 尝试获取日志，最多等待 500ms
+					if (_logQueue.Count > 0) // 检查 List 是否有日志
 					{
-						writer.WriteLine(log);
-						writer.Flush();
+						writer.WriteLine(_logQueue[0]); // 写入第一个日志
+						_logQueue.RemoveAt(0); // 从 List 中移除已写入的日志
 						currentEntryCount++;
 					}
 				}
@@ -278,10 +236,30 @@ internal partial class USUWrapper : BaseWrapper
 			catch (Exception ex)
 			{
 				Debug.LogError($"写入日志文件失败: {ex.Message}");
-				Thread.Sleep(1000); // 发生错误时等待一秒再继续
 				currentFilePath = null; // 发生错误时重置文件路径，下次将创建新文件
 			}
+
+			yield return null; // 每次循环暂停一帧，避免卡顿
 		}
+	}
+
+	// 修改 StartThread 方法
+	private void StartThread()
+	{
+		string directory = Path.GetDirectoryName(LOG_DIRECTORY);
+		Directory.CreateDirectory(directory);
+		// 启动协程
+		MonoBehaviour monoBehaviour = GetMonoBehaviourInstance();
+		if (monoBehaviour != null && _writeCoroutine == null)
+		{
+			_writeCoroutine = monoBehaviour.StartCoroutine(WriteLogToFileCoroutine());
+		}
+	}
+
+	// 添加获取 MonoBehaviour 实例的方法
+	private MonoBehaviour GetMonoBehaviourInstance()
+	{
+		return StatisticsUploader.MonoBehaviour;
 	}
 }
 // #endif

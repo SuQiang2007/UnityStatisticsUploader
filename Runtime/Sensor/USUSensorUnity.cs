@@ -11,6 +11,12 @@ using UnityEngine;
 /// </summary>
 public class USUSensorUnity : MonoBehaviour
 {
+    private void Awake()
+    {
+        if(StatisticsUploader.ReceiveErrorLog) Application.logMessageReceived += StatisticsUploader.HandleLog;
+        if(StatisticsUploader.ReceiveExceptionLog) AppDomain.CurrentDomain.UnhandledException += StatisticsUploader.HandleUnhandledException;
+    }
+
     // Start is called before the first frame update
     void Start()
     {

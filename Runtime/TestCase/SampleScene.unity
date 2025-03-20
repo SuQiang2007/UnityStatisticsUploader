@@ -523,6 +523,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf5321e12c2d7524d8312ba51069f0f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _timer: 0
   sendInterval: 1
 --- !u!4 &957876532
 Transform:
@@ -571,6 +572,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f20b21f927d372f42ae4667b2214a2eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  amplitude: 5
+  speed: 2
 --- !u!65 &1921959137
 BoxCollider:
   m_ObjectHideFlags: 0

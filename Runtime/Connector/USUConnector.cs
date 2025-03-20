@@ -19,7 +19,7 @@ public class USUConnector : BaseConnector
 {
     private string _token;
     private bool _isLoggedIn;
-    
+
     internal override void Initialize()
     {
         Debug.Log("Initializing USU Connector");
@@ -30,17 +30,13 @@ public class USUConnector : BaseConnector
         return false;
     }
 
-
-    internal override async Task<bool> SendLogsToServerAsync(List<Dictionary<string, object>> list)
+    internal override IEnumerator SendLogsToServer(List<Dictionary<string, object>> list, string filePath, Action<bool> callback)
     {
-        if (!IsConnectorAvailable())
-        {
-            Debug.Log($"Update ：{JsonConvert.SerializeObject(list)}");
-            Debug.LogWarning("No USU connector available.");
-            return false;
-        }
+        throw new NotImplementedException();
+    }
 
-        Debug.LogError($"上传到服务端一条日志：{JsonConvert.SerializeObject(list)}");
-        return true;
+    internal override void DecorateData(Dictionary<string, object> data)
+    {
+        data.Add("id", Guid.NewGuid().ToString());
     }
 }
