@@ -22,7 +22,7 @@ public class USUConnector : BaseConnector
 
     internal override void Initialize()
     {
-        Debug.Log("Initializing USU Connector");
+        
     }
 
     internal override bool IsConnectorAvailable()
@@ -32,7 +32,9 @@ public class USUConnector : BaseConnector
 
     internal override IEnumerator SendLogsToServer(List<Dictionary<string, object>> list, string filePath, Action<bool> callback)
     {
-        throw new NotImplementedException();
+        StatisticsUploader.Log($"Sending logs to server:{filePath} content is {JsonConvert.SerializeObject(list, Formatting.Indented)}");
+        callback?.Invoke(true);
+        yield break;
     }
 
     internal override void DecorateData(Dictionary<string, object> data)
