@@ -11,12 +11,14 @@ public abstract class BaseConnector : MonoBehaviour
     internal abstract bool IsConnectorAvailable();
 
     internal abstract IEnumerator SendLogsToServer(List<Dictionary<string, object>> list, string filePath, Action<bool> callback);
+    
+    internal abstract Task<bool> SendLogsToServerAsync(List<Dictionary<string, object>> list, string filePath);
 
     //Every developer will have their own data rules(such as some public attributes like id, timestamp ex), you can apply them with override DecorateData
     internal abstract void DecorateData(Dictionary<string, object> data);
     
     protected MonoBehaviour GetMonoBehaviourInstance()
     {
-        return StatisticsUploader.MonoBehaviour;
+        return USU.MonoBehaviour;
     }
 }

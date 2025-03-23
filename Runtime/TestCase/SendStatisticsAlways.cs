@@ -12,7 +12,7 @@ public class SendStatisticsAlways : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
+        USU.DynamicInitUsu<USUConnector, USUWrapperThread>();
     }
 
     // Update is called once per frame
@@ -35,7 +35,7 @@ public class SendStatisticsAlways : MonoBehaviour
             };
             
             // 发送统计数据
-            StatisticsUploader.SendStatistics(testData);
+            USU.SendStatistics(testData);
         }
     }
 }

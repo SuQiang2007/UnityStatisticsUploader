@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using UnityEngine;
 
-public class StatisticsUploader : MonoBehaviour
+public class USU : MonoBehaviour
 {
     public static BaseConnector UsuConnector;
-    private static USUWrapper _usuWrapper;
+    private static BaseWrapper _usuWrapper;
     
     //You can set these parameters anywhere
     public static bool ReceiveErrorLog = true;
@@ -18,13 +18,14 @@ public class StatisticsUploader : MonoBehaviour
     public static MonoBehaviour MonoBehaviour;
 
     
-    public static void DynamicInitUsu<T>(Transform parent = null) where T : Component
+    public static void DynamicInitUsu<T1,T2>(Transform parent = null) where T1 : Component where T2 : Component
     {
         GameObject usuGo = new GameObject("USUGameObject");
         if(parent != null) usuGo.transform.parent = parent;
         DontDestroyOnLoad(usuGo);
-        usuGo.AddComponent<T>();
-        usuGo.AddComponent<StatisticsUploader>();
+        usuGo.AddComponent<T1>();
+        usuGo.AddComponent<T2>();
+        usuGo.AddComponent<USU>();
         usuGo.AddComponent<USUSensorUnity>();
     }
     
@@ -43,7 +44,7 @@ public class StatisticsUploader : MonoBehaviour
         UsuConnector.Initialize();
         
         Log("Logic wrapper Initialized");
-        _usuWrapper = new USUWrapper();
+        _usuWrapper = GetComponent<BaseWrapper>();
         _usuWrapper.Initialize();
         
         DontDestroyOnLoad(gameObject);

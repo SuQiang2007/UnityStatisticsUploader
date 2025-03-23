@@ -13,8 +13,8 @@ public class USUSensorUnity : MonoBehaviour
 {
     private void Awake()
     {
-        if(StatisticsUploader.ReceiveErrorLog) Application.logMessageReceived += StatisticsUploader.HandleLog;
-        if(StatisticsUploader.ReceiveExceptionLog) AppDomain.CurrentDomain.UnhandledException += StatisticsUploader.HandleUnhandledException;
+        if(USU.ReceiveErrorLog) Application.logMessageReceived += USU.HandleLog;
+        if(USU.ReceiveExceptionLog) AppDomain.CurrentDomain.UnhandledException += USU.HandleUnhandledException;
     }
 
     // Start is called before the first frame update
@@ -35,12 +35,12 @@ public class USUSensorUnity : MonoBehaviour
 
     private void OnApplicationPause(bool isPause)
     {
-        StatisticsUploader.Flush();
+        USU.Flush();
     }
     
     void OnDestroy()
     {
-        Application.logMessageReceived -= StatisticsUploader.HandleLog;
-        AppDomain.CurrentDomain.UnhandledException -= StatisticsUploader.HandleUnhandledException;
+        Application.logMessageReceived -= USU.HandleLog;
+        AppDomain.CurrentDomain.UnhandledException -= USU.HandleUnhandledException;
     }
 }

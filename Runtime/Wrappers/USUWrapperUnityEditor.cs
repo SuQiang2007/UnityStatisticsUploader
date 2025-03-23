@@ -129,7 +129,7 @@ internal partial class USUWrapper : BaseWrapper
 				data.Add(JsonConvert.DeserializeObject<Dictionary<string, object>>(line));
 			}
 
-			yield return GetMonoBehaviourInstance().StartCoroutine(StatisticsUploader.UsuConnector.SendLogsToServer(data, filePath, success =>
+			yield return GetMonoBehaviourInstance().StartCoroutine(USU.UsuConnector.SendLogsToServer(data, filePath, success =>
 			{
 				if (success)
 				{
@@ -259,7 +259,7 @@ internal partial class USUWrapper : BaseWrapper
 	// 添加获取 MonoBehaviour 实例的方法
 	private MonoBehaviour GetMonoBehaviourInstance()
 	{
-		return StatisticsUploader.MonoBehaviour;
+		return USU.MonoBehaviour;
 	}
 }
 // #endif

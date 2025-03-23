@@ -32,9 +32,15 @@ public class USUConnector : BaseConnector
 
     internal override IEnumerator SendLogsToServer(List<Dictionary<string, object>> list, string filePath, Action<bool> callback)
     {
-        StatisticsUploader.Log($"Sending logs to server:{filePath} content is {JsonConvert.SerializeObject(list, Formatting.Indented)}");
+        USU.Log($"(Coroutine)Sending logs to server:{filePath} content is {JsonConvert.SerializeObject(list, Formatting.Indented)}");
         callback?.Invoke(true);
         yield break;
+    }
+    
+    internal override async Task<bool> SendLogsToServerAsync(List<Dictionary<string, object>> list, string filePath)
+    {
+        USU.Log($"(Task)Sending logs to server:{filePath} content is {JsonConvert.SerializeObject(list, Formatting.Indented)}");
+        return true;
     }
 
     internal override void DecorateData(Dictionary<string, object> data)
